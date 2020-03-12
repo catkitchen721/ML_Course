@@ -1,2 +1,2 @@
-# ml_game
-ML-Game lab1
+# ML_Course
+ML_Course lab1
