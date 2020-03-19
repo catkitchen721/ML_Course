@@ -22,10 +22,21 @@ def ml_loop():
     # === Here is the execution order of the loop === #
     # 1. Put the initialization code here.
     ball_served = False
+    ball_prev = [0, 0]
+    m = [0, 0] # slope
+    n = 1 # future steps
+    fp = 0 # point of fall (x cord)
+    new_start = [0, 0] # if ball will hit the wall, create new start point
     GAME_W = 200
     GAME_H = 500
     BALL_R = 5
-    BALL_SP = ((7, -7), (7, 7), (-7, 7), (-7, -7))
+    BALL_SPEED = ((7, -7), (7, 7), (-7, 7), (-7, -7))
+    BOARD_W = 40
+    BOARD_H = 5
+    BOARD_START = (75, 400)
+    BOARD_SPEED = ((5, 0), (-5, 0))
+    BRICK_W = 25
+    BRICK_H = 10
 
     # 2. Inform the game process that ml process is ready before start the loop.
     comm.ml_ready()
@@ -47,13 +58,36 @@ def ml_loop():
             continue
 
         # 3.3. Put the code here to handle the scene information
+        if ball_served:
+            m[0] = scene_info.ball[0] - ball_prev[0]
+            m[1] = scene_info.ball[1] - ball_prev[1]
+            if m[1] > 0:
+                new_start[0] = scene_info.ball[0]
+                new_start[1] = scene_info.ball[1]
+                while True:
+                    n = (BOARD_START[1] - new_start[1]) / m[1]
+                    fp = int(new_start[0] + n * m[0])
+                    if (fp >= 0 and fp <= GAME_W):
+                        break
+                    if (m[0] > 0): # hit right side
+                        n = abs((GAME_W - new_start[0]) / m[0])
+                        new_start[1] = int(new_start[1] + n * m[1])
+                        new_start[0] = GAME_W
+                    else:          # hit left side
+                        n = abs((0 - new_start[0]) / m[0])
+                        new_start[1] = int(new_start[1] + n * m[1])
+                        new_start[0] = 0
+                    m[0] = -m[0]
+        ball_prev[0] = scene_info.ball[0]
+        ball_prev[1] = scene_info.ball[1]
+        fp -= (BOARD_W / 2)
 
         # 3.4. Send the instruction for this frame to the game process
         if not ball_served:
             comm.send_instruction(scene_info.frame, PlatformAction.SERVE_TO_RIGHT)
             ball_served = True
         else:
-            if scene_info.ball[0] < scene_info.platform[0]:
+            if fp < scene_info.platform[0]:
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
             else:
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
